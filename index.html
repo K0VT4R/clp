@@ -4,13 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Odliczanie - Klepsydra</title>
-    <!-- Importujemy pikselową czcionkę z Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         body {
             background-color: #1a1a1a;
             color: #ffffff;
-            font-family: 'Press Start 2P', monospace; /* Pikselowa czcionka */
+            font-family: 'Press Start 2P', monospace;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -20,7 +19,6 @@
             text-align: center;
         }
 
-        /* Pikselowa Klepsydra - stworzona za pomocą prostych bloków (div) */
         .hourglass {
             display: flex;
             flex-direction: column;
@@ -31,16 +29,17 @@
         .wood-cap {
             width: 140px;
             height: 20px;
-            background-color: #5c3a21; /* Ciemne drewno */
+            background-color: #5c3a21;
             border: 4px solid #3e2723;
             box-shadow: inset -4px -4px 0px rgba(0,0,0,0.3), inset 4px 4px 0px rgba(255,255,255,0.1);
+            z-index: 2;
         }
 
         .glass-container {
             width: 100px;
             height: 120px;
             background-color: rgba(255, 255, 255, 0.1);
-            border: 4px solid #a2c2e6; /* Jasne szkło */
+            border: 4px solid #a2c2e6;
             position: relative;
             overflow: hidden;
             display: flex;
@@ -60,10 +59,10 @@
 
         .sand {
             width: 100%;
-            background-color: #ffd700; /* Żółty piasek */
-            /* Cień imitujący piksele i fakturę piasku */
+            background-color: #ffd700;
             box-shadow: inset -4px -4px 0px rgba(200, 150, 0, 0.8); 
             transition: height 1s ease-in-out;
+            z-index: 1;
         }
 
         .neck {
@@ -71,19 +70,42 @@
             height: 15px;
             background-color: #a2c2e6;
             position: relative;
+            z-index: 3;
         }
         
-        .falling-sand {
+        /* Kontener na animowane ziarenka */
+        .falling-sand-container {
             position: absolute;
-            width: 6px;
-            height: 15px;
-            background-color: #ffd700;
+            top: 0;
             left: 50%;
+            width: 2px;
+            height: 100%;
             transform: translateX(-50%);
-            display: none; /* Animacja opadania włączana w JS */
+            z-index: 0;
         }
 
-        /* Sekcja odliczania */
+        /* Pojedyncze ziarenko piasku (piksel) */
+        .grain {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background-color: #ffd700;
+            top: 0;
+            left: 0;
+            animation: fall 1.5s steps(6) forwards; /* Używamy steps by wymusić rwanie pikselowe */
+        }
+
+        /* Animacja zygzakowata w dół */
+        @keyframes fall {
+            0% { transform: translate(0px, 0px); opacity: 1; }
+            20% { transform: translate(-6px, 20px); }
+            40% { transform: translate(6px, 40px); }
+            60% { transform: translate(-6px, 60px); }
+            80% { transform: translate(6px, 80px); }
+            95% { transform: translate(0px, 100px); opacity: 1; }
+            100% { transform: translate(0px, 110px); opacity: 0; }
+        }
+
         .countdown-title {
             font-size: 14px;
             margin-bottom: 20px;
@@ -122,24 +144,20 @@
 </head>
 <body>
 
-    <!-- Klepsydra -->
     <div class="hourglass">
         <div class="wood-cap"></div>
         <div class="glass-container glass-top">
-            <!-- Piasek górny (na początku pełny) -->
             <div id="top-sand" class="sand" style="height: 100%;"></div>
         </div>
-        <div class="neck">
-            <div id="falling-sand" class="falling-sand"></div>
-        </div>
+        <div class="neck"></div>
         <div class="glass-container glass-bottom">
-            <!-- Piasek dolny (na początku pusty) -->
+            <!-- Pusty div pełniący rolę toru dla opadających ziarenek -->
+            <div id="falling-sand-container" class="falling-sand-container"></div>
             <div id="bottom-sand" class="sand" style="height: 0%;"></div>
         </div>
         <div class="wood-cap"></div>
     </div>
 
-    <!-- Licznik -->
     <div class="countdown-title">Koniec odliczania za:</div>
     
     <div class="timer-container">
@@ -162,43 +180,37 @@
     </div>
 
     <script>
-        // Ustawienia dat (zmień datę początkową na realny moment powstania strony)
         const endDate = new Date('2027-06-30T00:00:00').getTime();
         const startDate = new Date('2026-10-22T00:00:00').getTime(); 
-
         const msInWeek = 1000 * 60 * 60 * 24 * 7;
         const totalDuration = endDate - startDate;
         const totalWeeks = Math.floor(totalDuration / msInWeek);
+        let timerEnded = false;
 
         function updateTimer() {
             const now = new Date().getTime();
             const distance = endDate - now;
 
-            // Zabezpieczenie, gdy czas dobiegnie końca
             if (distance <= 0) {
                 document.getElementById('days').innerText = "0";
                 document.getElementById('hours').innerText = "0";
                 document.getElementById('minutes').innerText = "0";
                 document.getElementById('seconds').innerText = "0";
-                updateSand(1); // 100% przelane
-                document.getElementById('falling-sand').style.display = 'none';
+                updateSand(1); 
+                timerEnded = true;
                 return;
             }
 
-            // Obliczenia czasu
             const days = Math.floor(distance / (1000 * 60 * 60 * 24));
             const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-            // Aktualizacja HTML (dodaje zera z przodu jeśli potrzeba, opcjonalnie można usunąć padStart)
             document.getElementById('days').innerText = days;
             document.getElementById('hours').innerText = hours.toString().padStart(2, '0');
             document.getElementById('minutes').innerText = minutes.toString().padStart(2, '0');
             document.getElementById('seconds').innerText = seconds.toString().padStart(2, '0');
-            document.getElementById('falling-sand').style.display = 'block';
 
-            // Logika piasku (aktualizacja TYLKO co tydzień w sensie upłyniętych równych tygodni)
             const elapsed = now - startDate;
             let weeksElapsed = Math.floor(elapsed / msInWeek);
             
@@ -212,16 +224,32 @@
         function updateSand(percent) {
             const topSand = document.getElementById('top-sand');
             const bottomSand = document.getElementById('bottom-sand');
-
-            // Górny piasek maleje z 100% do 0%
             topSand.style.height = (100 - (percent * 100)) + '%';
-            // Dolny piasek rośnie z 0% do 100%
             bottomSand.style.height = (percent * 100) + '%';
         }
 
-        // Odświeżaj timer co 1 sekundę
+        // --- Nowa funkcjonalność: Tworzenie ziarenek ---
+        function spawnGrain() {
+            if (timerEnded) return; // Przestań generować piasek gdy czas minie
+            
+            const container = document.getElementById('falling-sand-container');
+            const grain = document.createElement('div');
+            grain.classList.add('grain');
+            
+            // Dodaj ziarenko do kontenera
+            container.appendChild(grain);
+            
+            // Usuń ziarenko po zakończeniu animacji (1500 ms) by nie zaśmiecać kodu HTML
+            setTimeout(() => {
+                grain.remove();
+            }, 1500);
+        }
+
         setInterval(updateTimer, 1000);
-        updateTimer(); // wywołanie natychmiastowe przy starcie
+        // Odpalaj nowe ziarenko co 500 ms
+        setInterval(spawnGrain, 500);
+        
+        updateTimer(); 
     </script>
 </body>
 </html>
